@@ -3,6 +3,7 @@
 
 It is an api that sends e-mail to the candidates according to the evaluation criteria
 
+[![BuildStatus](https://api.travis-ci.org/guszak/candidates-backend.svg?branch=master)](https://travis-ci.org/guszak/candidates-backend)
 [![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/feross/standard)
 
 ## Git
