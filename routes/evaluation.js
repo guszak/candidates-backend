@@ -1,5 +1,6 @@
-var validator = require('email-validator')
-var mandrill = require('mandrill-api/mandrill')
+var Candidate = require('../routes/classes/candidate')
+var Knowledge = require('../routes/classes/knowledge')
+var Result = require('../routes/classes/result')
 
 /**
 * @name: post;
@@ -10,34 +11,25 @@ var mandrill = require('mandrill-api/mandrill')
 exports.post = function (req, res) {
   var error = ''
   var evaluation = req.body
-  var knowledgeFields = ['html', 'css', 'javascript', 'python', 'django', 'ios', 'android']
 
-  // Define default value
-  Object.keys(evaluation).map(function (key, index) {
-    if (evaluation[key] == null) { evaluation[key] = '' }
-  })
+  // Validate candidate info
+  var candidate = new Candidate()
+  candidate.setName(evaluation.name)
+  candidate.setEmail(evaluation.email)
+  candidate.valid()
+  error = candidate.getError()
 
-  // Valid values from request
-  if (!evaluation.name) {
-    error = 'O preenchimento do nome é obrigatório'
-  } else if (!evaluation.email) {
-    error = 'O preenchimento do E-mail é obrigatório'
-  } else if (!validator.validate(evaluation.email)) {
-    error = 'O E-mail está em um formato inválido'
+  if (!error) {
+    // Define knowledge values
+    var knowledge = new Knowledge()
+    knowledge.setHtml(evaluation.html)
+    knowledge.setCss(evaluation.css)
+    knowledge.setJavascript(evaluation.javascript)
+    knowledge.setPython(evaluation.python)
+    knowledge.setDjango(evaluation.django)
+    knowledge.setIos(evaluation.ios)
+    knowledge.setAndroid(evaluation.android)
   }
-
-  // Valid rating fields
-  Object.keys(evaluation).map(function (key, index) {
-    if (knowledgeFields.indexOf(key) >= 0 && evaluation[key] !== '') {
-      evaluation[key] = parseInt(evaluation[key])
-
-      if (isNaN(evaluation[key])) {
-        error = 'O campo ' + key + ' está em um formato inválido'
-      } else if (evaluation[key] < 0 || evaluation[key] > 10) {
-        error = 'O campo ' + key + ' deve ser um número entre 0 e 10'
-      }
-    }
-  })
 
   // Exit process having error
   if (error) {
@@ -45,67 +37,18 @@ exports.post = function (req, res) {
     return
   }
 
-  // Define evaluation criteria
-  var criteria = []
-  if (evaluation.html >= 7 && evaluation.css >= 7 && evaluation.javascript >= 7) {
-    criteria.push('Front-End')
-  }
+  var name = candidate.getName()
+  var email = candidate.getEmail()
 
-  if (evaluation.python >= 7 && evaluation.django >= 7) {
-    criteria.push('Back-End')
-  }
-
-  if (evaluation.ios >= 7 && evaluation.android >= 7) {
-    criteria.push('Mobile')
-  }
-
-  if (criteria.length === 0) {
-    criteria.push('')
-  }
+  // Verifies in which criterion the candidate combines
+  var criteria = knowledge.getCriteria()
 
   // Compose transactional e-mail for send to candidate
-  var message = {
-    'subject': 'Obrigado por se candidatar',
-    'from_email': process.env.MANDRILL_SENDER_EMAIL,
-    'from_name': process.env.MANDRILL_SENDER_NAME,
-    'to': [{
-      'email': evaluation.email,
-      'name': evaluation.name,
-      'type': 'to'
-    }]
-  }
+  var result = new Result()
+  result.setName(name)
+  result.setEmail(email)
+  result.setCriteria(criteria)
+  result.sendEmail()
 
-  // Required by Mandrill API, but not used
-  var templateContent = [{
-    'name': 'RESULT',
-    'content': 'RESULT'
-  }]
-
-  var parameters = {
-    'template_name': 'result',
-    'template_content': templateContent,
-    'message': message
-  }
-
-  var mandrillClient = new mandrill.Mandrill(process.env.MANDRILL_API_KEY)
-
-  // for each criteria, send one e-mail
-  for (var i = criteria.length - 1; i >= 0; i--) {
-    // Merge crtiteria content with template var
-    var globalMergeVars = [{
-      'name': 'RESULT',
-      'content': criteria[i]
-    }]
-
-    parameters.message.global_merge_vars = globalMergeVars
-
-    // Send E-mail to candidate
-    mandrillClient.messages.sendTemplate(parameters, function (result) {
-      console.log(result)
-    }, function (e) {
-      // Mandrill returns the error as an object with name and message keys
-      console.log('A mandrill error occurred: ' + e.name + ' - ' + e.message)
-    })
-  }
   res.send('ok')
 }

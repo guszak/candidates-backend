@@ -31,6 +31,12 @@ MANDRILL_SENDER_NAME="Name"
 
 Obs: You need config your Mandrill account to get api key
 
+## Test
+
+```bash
+npm test
+```
+
 ## Usage
 
 ```bash
